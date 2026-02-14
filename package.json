@@ -1,0 +1,14 @@
+{
+  "name": "graphlink",
+  "version": "1.0.0",
+  "description": "GraphLink — интерактивный инструмент визуализации графов и связей",
+  "scripts": {
+    "start": "serve . -l ${PORT:-3000} -s"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

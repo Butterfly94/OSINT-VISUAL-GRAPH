@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GraphLink — Визуализация связей</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --bg-primary: #0a0b0f;
+    --bg-secondary: #12141c;
+    --bg-tertiary: #1a1d2a;
+    --bg-card: #161825;
+    --border: #2a2d3e;
+    --border-active: #4a6cf7;
+    --text-primary: #e8eaf0;
+    --text-secondary: #8b8fa3;
+    --text-muted: #5a5e73;
+    --accent: #4a6cf7;
+    --accent-glow: rgba(74, 108, 247, 0.3);
+    --accent-secondary: #7c5cfc;
+    --danger: #f74a6a;
+    --success: #4af78a;
+    --warning: #f7c94a;
+    --cyan: #4af7e8;
+    --node-person: #4a6cf7;
+    --node-org: #7c5cfc;
+    --node-location: #4af78a;
+    --node-event: #f7c94a;
+    --node-device: #f74a6a;
+    --node-document: #4af7e8;
+    --cluster-1: rgba(74, 108, 247, 0.08);
+    --cluster-2: rgba(124, 92, 252, 0.08);
+    --cluster-3: rgba(74, 247, 136, 0.08);
+    --cluster-4: rgba(247, 201, 74, 0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ─── HEADER ─── */
+  .app-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 52px;
+    background: rgba(10, 11, 15, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 1000;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.3px;
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .header-stats span strong {
+    color: var(--text-secondary);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* ─── BUTTONS ─── */
+  .btn {
+    padding: 7px 14px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .btn:hover {
+    border-color: var(--border-active);
+    background: var(--bg-card);
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    background: #5a7af8;
+    border-color: #5a7af8;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .btn-danger {
+    color: var(--danger);
+  }
+
+  .btn-danger:hover {
+    background: rgba(247, 74, 106, 0.1);
+    border-color: var(--danger);
+  }
+
+  .btn-sm {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+
+  /* ─── TOOLBAR ─── */
+  .toolbar {
+    position: fixed;
+    left: 16px;
+    top: 68px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 900;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px;
+  }
+
+  .tool-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .tool-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .tool-btn.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  .tool-btn .tooltip {
+    position: absolute;
+    left: 48px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: 'Outfit', sans-serif;
+    color: var(--text-primary);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .tool-btn:hover .tooltip { opacity: 1; }
+
+  .tool-separator {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 2px;
+  }
+
+  /* ─── CANVAS ─── */
+  .canvas-container {
+    position: fixed;
+    top: 52px;
+    left: 0; right: 0; bottom: 0;
+    overflow: hidden;
+    cursor: grab;
+  }
+
+  .canvas-container.panning { cursor: grabbing; }
+  .canvas-container.connecting { cursor: crosshair; }
+
+  .canvas {
+    position: absolute;
+    transform-origin: 0 0;
+  }
+
+  .grid-bg {
+    position: fixed;
+    top: 52px;
+    left: 0; right: 0; bottom: 0;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);
+    background-size: 30px 30px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ─── SVG EDGES ─── */
+  .edges-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .edge-line {
+    stroke: var(--border);
+    stroke-width: 2;
+    fill: none;
+    transition: stroke 0.2s;
+  }
+
+  .edge-line:hover {
+    stroke: var(--accent);
+    stroke-width: 3;
+    cursor: pointer;
+    pointer-events: stroke;
+  }
+
+  .edge-line.selected {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-dasharray: 6 3;
+    animation: edgePulse 2s infinite;
+  }
+
+  @keyframes edgePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .edge-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    fill: var(--text-muted);
+    pointer-events: all;
+    cursor: pointer;
+  }
+
+  .edge-label:hover { fill: var(--accent); }
+
+  /* ─── NODES ─── */
+  .node {
+    position: absolute;
+    min-width: 140px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    cursor: move;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    user-select: none;
+    z-index: 10;
+  }
+
+  .node:hover {
+    border-color: var(--border-active);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px var(--border-active);
+    z-index: 20;
+  }
+
+  .node.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow), 0 4px 24px rgba(0,0,0,0.4);
+    z-index: 20;
+  }
+
+  .node-type-indicator {
+    position: absolute;
+    top: -1px; left: -1px; right: -1px;
+    height: 3px;
+    border-radius: 10px 10px 0 0;
+  }
+
+  .node-content {
+    padding: 10px 12px;
+  }
+
+  .node-image-container {
+    width: 100%;
+    aspect-ratio: 16/10;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    background: var(--bg-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .node-image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .node-image-placeholder {
+    font-size: 20px;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .node-image-placeholder .icon { font-size: 18px; }
+
+  .node-title {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 2px;
+    line-height: 1.3;
+  }
+
+  .node-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .node-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-muted);
+    margin-top: 6px;
+    padding: 2px 6px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+  }
+
+  .connect-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    cursor: crosshair;
+    opacity: 0;
+    transition: all 0.2s;
+    z-index: 30;
+  }
+
+  .node:hover .connect-handle { opacity: 1; }
+  .connect-handle:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    transform: scale(1.3);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+
+  .connect-handle.top { top: -6px; left: 50%; transform: translateX(-50%); }
+  .connect-handle.bottom { bottom: -6px; left: 50%; transform: translateX(-50%); }
+  .connect-handle.left { left: -6px; top: 50%; transform: translateY(-50%); }
+  .connect-handle.right { right: -6px; top: 50%; transform: translateY(-50%); }
+  .connect-handle.top:hover { transform: translateX(-50%) scale(1.3); }
+  .connect-handle.bottom:hover { transform: translateX(-50%) scale(1.3); }
+  .connect-handle.left:hover { transform: translateY(-50%) scale(1.3); }
+  .connect-handle.right:hover { transform: translateY(-50%) scale(1.3); }
+
+  /* ─── CLUSTERS ─── */
+  .cluster {
+    position: absolute;
+    border: 1.5px dashed;
+    border-radius: 16px;
+    z-index: 2;
+    min-width: 200px;
+    min-height: 150px;
+    cursor: move;
+  }
+
+  .cluster-label {
+    position: absolute;
+    top: -12px;
+    left: 16px;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* ─── PANELS ─── */
+  .panel {
+    position: fixed;
+    right: -420px;
+    top: 52px;
+    bottom: 0;
+    width: 380px;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    z-index: 800;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .panel.open { right: 0; }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+    z-index: 10;
+  }
+
+  .panel-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .panel-body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+
+  .form-group label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .form-input {
+    padding: 8px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+
+  .form-input::placeholder { color: var(--text-muted); }
+
+  textarea.form-input {
+    resize: vertical;
+    min-height: 60px;
+    line-height: 1.5;
+  }
+
+  .type-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .type-option {
+    padding: 8px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .type-option .type-icon { font-size: 16px; }
+  .type-option:hover { border-color: var(--text-muted); }
+  .type-option.selected {
+    border-color: var(--accent);
+    background: rgba(74, 108, 247, 0.1);
+    color: var(--text-primary);
+  }
+
+  .image-upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .image-upload-area:hover {
+    border-color: var(--accent);
+    background: rgba(74, 108, 247, 0.03);
+  }
+
+  .image-upload-area .upload-text {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .image-upload-area .upload-icon {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .image-upload-area img {
+    max-width: 100%;
+    max-height: 160px;
+    border-radius: 6px;
+    object-fit: contain;
+  }
+
+  .image-upload-area input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .color-options {
+    display: flex;
+    gap: 6px;
+  }
+
+  .color-option {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .color-option:hover { transform: scale(1.15); }
+  .color-option.selected {
+    border-color: #fff;
+    box-shadow: 0 0 8px rgba(255,255,255,0.2);
+  }
+
+  /* ─── MINIMAP ─── */
+  .minimap {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    width: 180px;
+    height: 120px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 800;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+  }
+
+  .minimap:hover { opacity: 1; }
+
+  .minimap-viewport {
+    position: absolute;
+    border: 1.5px solid var(--accent);
+    background: rgba(74, 108, 247, 0.08);
+    border-radius: 2px;
+    pointer-events: none;
+  }
+
+  .minimap-node {
+    position: absolute;
+    border-radius: 2px;
+    min-width: 4px;
+    min-height: 3px;
+  }
+
+  /* ─── ZOOM CONTROLS ─── */
+  .zoom-controls {
+    position: fixed;
+    bottom: 16px;
+    left: 70px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    z-index: 800;
+  }
+
+  .zoom-level {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 44px;
+    text-align: center;
+  }
+
+  /* ─── CONTEXT MENU ─── */
+  .context-menu {
+    position: fixed;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px;
+    min-width: 180px;
+    z-index: 2000;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    display: none;
+  }
+
+  .context-menu.visible { display: block; }
+
+  .context-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+    color: var(--text-secondary);
+  }
+
+  .context-item:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .context-item.danger { color: var(--danger); }
+  .context-separator { height: 1px; background: var(--border); margin: 4px 8px; }
+
+  /* ─── MODAL OVERLAY ─── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.visible { display: flex; }
+
+  .modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 440px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h3 { font-size: 15px; }
+
+  .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  /* ─── SEARCH BAR ─── */
+  .search-bar {
+    position: fixed;
+    top: 62px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 850;
+    display: none;
+  }
+
+  .search-bar.visible { display: block; }
+
+  .search-input-wrapper {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .search-input-wrapper input {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    padding: 8px 14px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    outline: none;
+    width: 280px;
+  }
+
+  .search-input-wrapper input::placeholder { color: var(--text-muted); }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes nodeAppear {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .node { animation: nodeAppear 0.25s cubic-bezier(0.2, 0, 0.2, 1); }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* ─── IMAGE VIEWER ─── */
+  .image-viewer {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(10px);
+    z-index: 5000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  }
+
+  .image-viewer.visible { display: flex; }
+
+  .image-viewer img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 16px 64px rgba(0,0,0,0.5);
+  }
+
+  .empty-state {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  .empty-state .big-icon {
+    font-size: 48px;
+    opacity: 0.15;
+    margin-bottom: 16px;
+  }
+
+  .empty-state h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .empty-state p {
+    font-size: 13px;
+    color: var(--text-muted);
+    opacity: 0.6;
+  }
+
+  .edge-label-bg {
+    fill: var(--bg-primary);
+    rx: 4;
+    ry: 4;
+  }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useRef, useCallback, useEffect, useMemo } = React;
+
+const NODE_TYPES = {
+  person: { label: 'Персона', icon: '👤', color: 'var(--node-person)' },
+  org: { label: 'Организация', icon: '🏢', color: 'var(--node-org)' },
+  location: { label: 'Локация', icon: '📍', color: 'var(--node-location)' },
+  event: { label: 'Событие', icon: '📅', color: 'var(--node-event)' },
+  device: { label: 'Устройство', icon: '📱', color: 'var(--node-device)' },
+  document: { label: 'Документ', icon: '📄', color: 'var(--node-document)' },
+  social: { label: 'Соцсети', icon: '💬', color: '#e44d91' },
+  phone: { label: 'Телефон', icon: '📞', color: '#4ad4f7' },
+  car: { label: 'Автомобиль', icon: '🚗', color: '#a78bfa' },
+  relatives: { label: 'Родственники', icon: '👨‍👩‍👧', color: '#f7944a' },
+  company: { label: 'Компания', icon: '🏛️', color: '#6ee7b7' },
+};
+
+const CLUSTER_COLORS = [
+  { bg: 'var(--cluster-1)', border: 'var(--node-person)', label: '#1c2444' },
+  { bg: 'var(--cluster-2)', border: 'var(--node-org)', label: '#241c44' },
+  { bg: 'var(--cluster-3)', border: 'var(--node-location)', label: '#1c4428' },
+  { bg: 'var(--cluster-4)', border: 'var(--node-event)', label: '#44381c' },
+];
+
+let idCounter = 1;
+const genId = () => `id_${Date.now()}_${idCounter++}`;
+
+function App() {
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
+  const [clusters, setClusters] = useState([]);
+  const [selectedNodes, setSelectedNodes] = useState([]);
+  const [selectedEdge, setSelectedEdge] = useState(null);
+  const [tool, setTool] = useState('select'); // select, connect, cluster
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelMode, setPanelMode] = useState('node'); // node, edge, cluster
+  const [editData, setEditData] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [connecting, setConnecting] = useState(null);
+  const [tempLine, setTempLine] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [imageViewer, setImageViewer] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('addNode');
+
+  const canvasRef = useRef(null);
+  const isPanning = useRef(false);
+  const panStart = useRef({ x: 0, y: 0 });
+  const dragNode = useRef(null);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const dragCluster = useRef(null);
+  const clusterDragOffset = useRef({ x: 0, y: 0 });
+
+  // ─── HELPERS ───
+  const screenToCanvas = useCallback((sx, sy) => ({
+    x: (sx - pan.x) / zoom,
+    y: (sy - pan.y) / zoom,
+  }), [pan, zoom]);
+
+  const getNodeCenter = useCallback((node) => ({
+    x: node.x + (node.width || 140) / 2,
+    y: node.y + (node.height || 100) / 2,
+  }), []);
+
+  // ─── KEYBOARD ───
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodes.length > 0) {
+          setNodes(prev => prev.filter(n => !selectedNodes.includes(n.id)));
+          setEdges(prev => prev.filter(e => !selectedNodes.includes(e.from) && !selectedNodes.includes(e.to)));
+          setSelectedNodes([]);
+        }
+        if (selectedEdge) {
+          setEdges(prev => prev.filter(e => e.id !== selectedEdge));
+          setSelectedEdge(null);
+        }
+      }
+      if (e.key === 'Escape') {
+        setSelectedNodes([]);
+        setSelectedEdge(null);
+        setContextMenu(null);
+        setConnecting(null);
+        setTempLine(null);
+        setSearchOpen(false);
+        setPanelOpen(false);
+        setModalOpen(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setSearchOpen(v => !v);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedNodes, selectedEdge]);
+
+  // ─── CANVAS EVENTS ───
+  const handleCanvasMouseDown = (e) => {
+    if (e.button === 1 || (e.button === 0 && e.target === canvasRef.current?.parentElement)) {
+      isPanning.current = true;
+      panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+    }
+    if (e.button === 0 && e.target === canvasRef.current?.parentElement) {
+      setSelectedNodes([]);
+      setSelectedEdge(null);
+      setContextMenu(null);
+    }
+  };
+
+  const handleCanvasMouseMove = (e) => {
+    if (isPanning.current) {
+      setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y });
+    }
+    if (dragNode.current) {
+      const pos = screenToCanvas(e.clientX, e.clientY);
+      setNodes(prev => prev.map(n =>
+        n.id === dragNode.current
+          ? { ...n, x: pos.x - dragOffset.current.x, y: pos.y - dragOffset.current.y }
+          : n
+      ));
+    }
+    if (dragCluster.current) {
+      const pos = screenToCanvas(e.clientX, e.clientY);
+      setClusters(prev => prev.map(c =>
+        c.id === dragCluster.current
+          ? { ...c, x: pos.x - clusterDragOffset.current.x, y: pos.y - clusterDragOffset.current.y }
+          : c
+      ));
+    }
+    if (connecting) {
+      const pos = screenToCanvas(e.clientX, e.clientY - 52);
+      setTempLine({ x: pos.x, y: pos.y });
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    isPanning.current = false;
+    dragNode.current = null;
+    dragCluster.current = null;
+  };
+
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.08 : 0.08;
+    setZoom(prev => Math.min(3, Math.max(0.15, prev + delta)));
+  };
+
+  useEffect(() => {
+    const el = canvasRef.current?.parentElement;
+    if (el) el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el?.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  const handleCanvasDoubleClick = (e) => {
+    if (e.target !== canvasRef.current?.parentElement) return;
+    const pos = screenToCanvas(e.clientX, e.clientY - 52);
+    setEditData({
+      id: null,
+      title: '',
+      description: '',
+      type: 'person',
+      image: null,
+      x: pos.x,
+      y: pos.y,
+    });
+    setModalMode('addNode');
+    setModalOpen(true);
+  };
+
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    const pos = screenToCanvas(e.clientX, e.clientY - 52);
+    setContextMenu({ x: e.clientX, y: e.clientY, canvasX: pos.x, canvasY: pos.y });
+  };
+
+  // ─── NODE EVENTS ───
+  const handleNodeMouseDown = (e, nodeId) => {
+    e.stopPropagation();
+    if (tool === 'connect') return;
+    const node = nodes.find(n => n.id === nodeId);
+    const pos = screenToCanvas(e.clientX, e.clientY);
+    dragNode.current = nodeId;
+    dragOffset.current = { x: pos.x - node.x, y: pos.y - node.y };
+    if (e.shiftKey) {
+      setSelectedNodes(prev =>
+        prev.includes(nodeId) ? prev.filter(id => id !== nodeId) : [...prev, nodeId]
+      );
+    } else {
+      setSelectedNodes([nodeId]);
+    }
+    setSelectedEdge(null);
+  };
+
+  const handleConnectStart = (e, nodeId) => {
+    e.stopPropagation();
+    setConnecting(nodeId);
+  };
+
+  const handleConnectEnd = (e, nodeId) => {
+    e.stopPropagation();
+    if (connecting && connecting !== nodeId) {
+      const exists = edges.find(ed =>
+        (ed.from === connecting && ed.to === nodeId) || (ed.from === nodeId && ed.to === connecting)
+      );
+      if (!exists) {
+        setEdges(prev => [...prev, { id: genId(), from: connecting, to: nodeId, label: '' }]);
+      }
+    }
+    setConnecting(null);
+    setTempLine(null);
+  };
+
+  // ─── CLUSTER EVENTS ───
+  const handleClusterMouseDown = (e, clusterId) => {
+    e.stopPropagation();
+    const cluster = clusters.find(c => c.id === clusterId);
+    const pos = screenToCanvas(e.clientX, e.clientY);
+    dragCluster.current = clusterId;
+    clusterDragOffset.current = { x: pos.x - cluster.x, y: pos.y - cluster.y };
+  };
+
+  // ─── ADD / EDIT ───
+  const addNode = (data) => {
+    const newNode = {
+      id: genId(),
+      title: data.title || 'Новый узел',
+      description: data.description || '',
+      type: data.type || 'person',
+      image: data.image || null,
+      x: data.x || 400,
+      y: data.y || 300,
+      width: 160,
+      height: data.image ? 140 : 80,
+    };
+    setNodes(prev => [...prev, newNode]);
+    setModalOpen(false);
+  };
+
+  const updateNode = (id, data) => {
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, ...data, height: data.image ? 140 : 80 } : n));
+    setPanelOpen(false);
+  };
+
+  const addCluster = (data) => {
+    const newCluster = {
+      id: genId(),
+      label: data.label || 'Кластер',
+      x: data.x || 300,
+      y: data.y || 200,
+      width: data.width || 300,
+      height: data.height || 250,
+      colorIndex: data.colorIndex || 0,
+    };
+    setClusters(prev => [...prev, newCluster]);
+    setModalOpen(false);
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setEditData(prev => ({ ...prev, image: ev.target.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ─── EXPORT ───
+  const exportData = () => {
+    const data = JSON.stringify({ nodes, edges, clusters }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'graph-export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (data.nodes) setNodes(data.nodes);
+          if (data.edges) setEdges(data.edges);
+          if (data.clusters) setClusters(data.clusters);
+        } catch (err) {
+          alert('Ошибка чтения файла');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  // ─── FILTERED NODES ───
+  const filteredNodes = useMemo(() => {
+    if (!searchQuery) return nodes;
+    const q = searchQuery.toLowerCase();
+    return nodes.filter(n =>
+      n.title.toLowerCase().includes(q) || n.description.toLowerCase().includes(q)
+    );
+  }, [nodes, searchQuery]);
+
+  const highlightedIds = useMemo(() => new Set(filteredNodes.map(n => n.id)), [filteredNodes]);
+
+  // ─── RENDER ───
+  return (
+    <>
+      {/* HEADER */}
+      <div className="app-header">
+        <div className="logo">
+          <div className="logo-icon">⬡</div>
+          GraphLink
+        </div>
+        <div className="header-stats">
+          <span><strong>{nodes.length}</strong> узлов</span>
+          <span><strong>{edges.length}</strong> связей</span>
+          <span><strong>{clusters.length}</strong> кластеров</span>
+        </div>
+        <div className="header-actions">
+          <button className="btn" onClick={importData}>📂 Импорт</button>
+          <button className="btn" onClick={exportData}>💾 Экспорт</button>
+          <button className="btn btn-primary" onClick={() => {
+            setEditData({ title: '', description: '', type: 'person', image: null, x: (window.innerWidth / 2 - pan.x) / zoom, y: (window.innerHeight / 2 - pan.y) / zoom });
+            setModalMode('addNode');
+            setModalOpen(true);
+          }}>＋ Узел</button>
+        </div>
+      </div>
+
+      {/* TOOLBAR */}
+      <div className="toolbar">
+        <button className={`tool-btn ${tool === 'select' ? 'active' : ''}`} onClick={() => setTool('select')}>
+          ◇ <span className="tooltip">Выделение (V)</span>
+        </button>
+        <button className={`tool-btn ${tool === 'connect' ? 'active' : ''}`} onClick={() => setTool('connect')}>
+          ⟶ <span className="tooltip">Связь (C)</span>
+        </button>
+        <div className="tool-separator" />
+        <button className="tool-btn" onClick={() => {
+          setEditData({ label: '', colorIndex: 0, x: (window.innerWidth / 2 - pan.x) / zoom - 150, y: (window.innerHeight / 2 - pan.y) / zoom - 125, width: 300, height: 250 });
+          setModalMode('addCluster');
+          setModalOpen(true);
+        }}>
+          ▢ <span className="tooltip">Кластер</span>
+        </button>
+        <div className="tool-separator" />
+        <button className="tool-btn" onClick={() => setSearchOpen(v => !v)}>
+          ⌕ <span className="tooltip">Поиск (Ctrl+F)</span>
+        </button>
+        <button className="tool-btn" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>
+          ⊙ <span className="tooltip">Сброс вида</span>
+        </button>
+      </div>
+
+      {/* SEARCH */}
+      <div className={`search-bar ${searchOpen ? 'visible' : ''}`}>
+        <div className="search-input-wrapper">
+          <input
+            placeholder="Поиск по узлам..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            autoFocus
+          />
+          <button className="btn btn-sm" onClick={() => { setSearchOpen(false); setSearchQuery(''); }}>✕</button>
+        </div>
+      </div>
+
+      {/* GRID */}
+      <div className="grid-bg" style={{ backgroundPosition: `${pan.x % 30}px ${pan.y % 30}px` }} />
+
+      {/* CANVAS */}
+      <div
+        className={`canvas-container ${isPanning.current ? 'panning' : ''} ${connecting ? 'connecting' : ''}`}
+        onMouseDown={handleCanvasMouseDown}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseUp={handleCanvasMouseUp}
+        onDoubleClick={handleCanvasDoubleClick}
+        onContextMenu={handleContextMenu}
+      >
+        <div
+          className="canvas"
+          ref={canvasRef}
+          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+        >
+          {/* CLUSTERS */}
+          {clusters.map(cluster => {
+            const col = CLUSTER_COLORS[cluster.colorIndex % CLUSTER_COLORS.length];
+            return (
+              <div
+                key={cluster.id}
+                className="cluster"
+                style={{
+                  left: cluster.x,
+                  top: cluster.y,
+                  width: cluster.width,
+                  height: cluster.height,
+                  background: col.bg,
+                  borderColor: col.border,
+                }}
+                onMouseDown={(e) => handleClusterMouseDown(e, cluster.id)}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setEditData(cluster);
+                  setModalMode('editCluster');
+                  setModalOpen(true);
+                }}
+              >
+                <div className="cluster-label" style={{ background: col.label, color: col.border, border: `1px solid ${col.border}` }}>
+                  {cluster.label}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* EDGES SVG */}
+          <svg className="edges-layer" style={{ width: '10000px', height: '10000px', left: '-5000px', top: '-5000px' }}>
+            <defs>
+              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="var(--border)" />
+              </marker>
+              <marker id="arrowhead-active" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="var(--accent)" />
+              </marker>
+            </defs>
+            {edges.map(edge => {
+              const fromNode = nodes.find(n => n.id === edge.from);
+              const toNode = nodes.find(n => n.id === edge.to);
+              if (!fromNode || !toNode) return null;
+              const from = { x: fromNode.x + (fromNode.width || 140) / 2 + 5000, y: fromNode.y + (fromNode.height || 80) / 2 + 5000 };
+              const to = { x: toNode.x + (toNode.width || 140) / 2 + 5000, y: toNode.y + (toNode.height || 80) / 2 + 5000 };
+              const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+              const isSelected = selectedEdge === edge.id;
+              return (
+                <g key={edge.id}>
+                  <line
+                    x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                    className={`edge-line ${isSelected ? 'selected' : ''}`}
+                    markerEnd={isSelected ? 'url(#arrowhead-active)' : 'url(#arrowhead)'}
+                    style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                    onClick={(e) => { e.stopPropagation(); setSelectedEdge(edge.id); setSelectedNodes([]); }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      const label = prompt('Подпись связи:', edge.label || '');
+                      if (label !== null) setEdges(prev => prev.map(ed => ed.id === edge.id ? { ...ed, label } : ed));
+                    }}
+                  />
+                  {edge.label && (
+                    <>
+                      <rect
+                        x={mid.x - edge.label.length * 3.2 - 4}
+                        y={mid.y - 8}
+                        width={edge.label.length * 6.4 + 8}
+                        height={16}
+                        className="edge-label-bg"
+                      />
+                      <text
+                        x={mid.x} y={mid.y + 3.5}
+                        textAnchor="middle"
+                        className="edge-label"
+                        onClick={(e) => { e.stopPropagation(); setSelectedEdge(edge.id); }}
+                      >
+                        {edge.label}
+                      </text>
+                    </>
+                  )}
+                </g>
+              );
+            })}
+            {/* TEMP CONNECTION LINE */}
+            {connecting && tempLine && (() => {
+              const fromNode = nodes.find(n => n.id === connecting);
+              if (!fromNode) return null;
+              const from = { x: fromNode.x + (fromNode.width || 140) / 2 + 5000, y: fromNode.y + (fromNode.height || 80) / 2 + 5000 };
+              return (
+                <line
+                  x1={from.x} y1={from.y}
+                  x2={tempLine.x + 5000} y2={tempLine.y + 5000}
+                  stroke="var(--accent)"
+                  strokeWidth="2"
+                  strokeDasharray="6 4"
+                  opacity="0.6"
+                />
+              );
+            })()}
+          </svg>
+
+          {/* NODES */}
+          {nodes.map(node => {
+            const typeInfo = NODE_TYPES[node.type] || NODE_TYPES.person;
+            const isSelected = selectedNodes.includes(node.id);
+            const isDim = searchQuery && !highlightedIds.has(node.id);
+            return (
+              <div
+                key={node.id}
+                className={`node ${isSelected ? 'selected' : ''}`}
+                style={{
+                  left: node.x,
+                  top: node.y,
+                  width: node.width || 160,
+                  opacity: isDim ? 0.2 : 1,
+                }}
+                onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                onMouseUp={(e) => { if (connecting) handleConnectEnd(e, node.id); }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setEditData({ ...node });
+                  setPanelMode('node');
+                  setPanelOpen(true);
+                }}
+              >
+                <div className="node-type-indicator" style={{ background: `linear-gradient(90deg, ${typeInfo.color}, transparent)` }} />
+
+                {/* CONNECT HANDLES */}
+                <div className="connect-handle top" onMouseDown={(e) => handleConnectStart(e, node.id)} />
+                <div className="connect-handle bottom" onMouseDown={(e) => handleConnectStart(e, node.id)} />
+                <div className="connect-handle left" onMouseDown={(e) => handleConnectStart(e, node.id)} />
+                <div className="connect-handle right" onMouseDown={(e) => handleConnectStart(e, node.id)} />
+
+                <div className="node-content">
+                  {node.image ? (
+                    <div className="node-image-container" onClick={(e) => { e.stopPropagation(); setImageViewer(node.image); }}>
+                      <img src={node.image} alt="" />
+                    </div>
+                  ) : null}
+                  <div className="node-title">{node.title}</div>
+                  {node.description && <div className="node-desc">{node.description}</div>}
+                  <div className="node-type-badge">
+                    <span>{typeInfo.icon}</span>
+                    {typeInfo.label}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ZOOM CONTROLS */}
+      <div className="zoom-controls">
+        <button className="tool-btn" style={{ width: 30, height: 30 }} onClick={() => setZoom(z => Math.max(0.15, z - 0.15))}>−</button>
+        <span className="zoom-level">{Math.round(zoom * 100)}%</span>
+        <button className="tool-btn" style={{ width: 30, height: 30 }} onClick={() => setZoom(z => Math.min(3, z + 0.15))}>+</button>
+      </div>
+
+      {/* MINIMAP */}
+      <div className="minimap">
+        {nodes.map(node => {
+          const typeInfo = NODE_TYPES[node.type] || NODE_TYPES.person;
+          return (
+            <div
+              key={node.id}
+              className="minimap-node"
+              style={{
+                left: `${((node.x + 2000) / 6000) * 100}%`,
+                top: `${((node.y + 2000) / 5000) * 100}%`,
+                width: 6,
+                height: 4,
+                background: typeInfo.color,
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* EMPTY STATE */}
+      {nodes.length === 0 && (
+        <div className="empty-state">
+          <div className="big-icon">⬡</div>
+          <h2>Начните создавать граф</h2>
+          <p>Дважды кликните на холст или нажмите «＋ Узел»</p>
+        </div>
+      )}
+
+      {/* CONTEXT MENU */}
+      {contextMenu && (
+        <div className="context-menu visible" style={{ left: contextMenu.x, top: contextMenu.y }}>
+          <div className="context-item" onClick={() => {
+            setEditData({ title: '', description: '', type: 'person', image: null, x: contextMenu.canvasX, y: contextMenu.canvasY });
+            setModalMode('addNode');
+            setModalOpen(true);
+            setContextMenu(null);
+          }}>＋ Добавить узел</div>
+          <div className="context-item" onClick={() => {
+            setEditData({ label: '', colorIndex: 0, x: contextMenu.canvasX - 150, y: contextMenu.canvasY - 125, width: 300, height: 250 });
+            setModalMode('addCluster');
+            setModalOpen(true);
+            setContextMenu(null);
+          }}>▢ Добавить кластер</div>
+          <div className="context-separator" />
+          {selectedNodes.length > 0 && (
+            <div className="context-item danger" onClick={() => {
+              setNodes(prev => prev.filter(n => !selectedNodes.includes(n.id)));
+              setEdges(prev => prev.filter(e => !selectedNodes.includes(e.from) && !selectedNodes.includes(e.to)));
+              setSelectedNodes([]);
+              setContextMenu(null);
+            }}>🗑 Удалить выбранные</div>
+          )}
+          <div className="context-item" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); setContextMenu(null); }}>⊙ Сбросить вид</div>
+        </div>
+      )}
+
+      {/* SIDE PANEL - Edit Node */}
+      <div className={`panel ${panelOpen && panelMode === 'node' ? 'open' : ''}`}>
+        <div className="panel-header">
+          <h3>Редактирование узла</h3>
+          <button className="btn btn-sm" onClick={() => setPanelOpen(false)}>✕</button>
+        </div>
+        {editData && panelMode === 'node' && (
+          <div className="panel-body">
+            <div className="form-group">
+              <label>Название</label>
+              <input className="form-input" value={editData.title} onChange={e => setEditData(prev => ({ ...prev, title: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label>Описание</label>
+              <textarea className="form-input" value={editData.description} onChange={e => setEditData(prev => ({ ...prev, description: e.target.value }))} rows={3} />
+            </div>
+            <div className="form-group">
+              <label>Тип</label>
+              <div className="type-selector">
+                {Object.entries(NODE_TYPES).map(([key, val]) => (
+                  <div
+                    key={key}
+                    className={`type-option ${editData.type === key ? 'selected' : ''}`}
+                    onClick={() => setEditData(prev => ({ ...prev, type: key }))}
+                  >
+                    <span className="type-icon">{val.icon}</span>
+                    {val.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Фото / Скриншот</label>
+              <div className="image-upload-area">
+                {editData.image ? (
+                  <>
+                    <img src={editData.image} alt="" />
+                    <br/>
+                    <button className="btn btn-sm btn-danger" style={{ marginTop: 8 }} onClick={() => setEditData(prev => ({ ...prev, image: null }))}>Удалить</button>
+                  </>
+                ) : (
+                  <div>
+                    <div className="upload-icon">📷</div>
+                    <div className="upload-text">Нажмите для загрузки</div>
+                  </div>
+                )}
+                <input type="file" accept="image/*" onChange={handleImageUpload} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => updateNode(editData.id, editData)}>
+                Сохранить
+              </button>
+              <button className="btn btn-danger" onClick={() => {
+                setNodes(prev => prev.filter(n => n.id !== editData.id));
+                setEdges(prev => prev.filter(e => e.from !== editData.id && e.to !== editData.id));
+                setPanelOpen(false);
+              }}>🗑</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL - Add Node / Cluster */}
+      <div className={`modal-overlay ${modalOpen ? 'visible' : ''}`} onClick={() => setModalOpen(false)}>
+        <div className="modal" onClick={e => e.stopPropagation()}>
+          {(modalMode === 'addNode' || modalMode === 'editNode') && editData && (
+            <>
+              <div className="modal-header">
+                <h3>{modalMode === 'addNode' ? 'Новый узел' : 'Редактировать узел'}</h3>
+                <button className="btn btn-sm" onClick={() => setModalOpen(false)}>✕</button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Название</label>
+                  <input className="form-input" placeholder="Введите название..." value={editData.title} onChange={e => setEditData(prev => ({ ...prev, title: e.target.value }))} autoFocus />
+                </div>
+                <div className="form-group">
+                  <label>Описание</label>
+                  <textarea className="form-input" placeholder="Описание элемента..." value={editData.description} onChange={e => setEditData(prev => ({ ...prev, description: e.target.value }))} rows={3} />
+                </div>
+                <div className="form-group">
+                  <label>Тип</label>
+                  <div className="type-selector">
+                    {Object.entries(NODE_TYPES).map(([key, val]) => (
+                      <div
+                        key={key}
+                        className={`type-option ${editData.type === key ? 'selected' : ''}`}
+                        onClick={() => setEditData(prev => ({ ...prev, type: key }))}
+                      >
+                        <span className="type-icon">{val.icon}</span>
+                        {val.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Фото / Скриншот</label>
+                  <div className="image-upload-area">
+                    {editData.image ? (
+                      <>
+                        <img src={editData.image} alt="" />
+                        <br/>
+                        <button className="btn btn-sm btn-danger" style={{ marginTop: 8 }} onClick={() => setEditData(prev => ({ ...prev, image: null }))}>Удалить</button>
+                      </>
+                    ) : (
+                      <div>
+                        <div className="upload-icon">📷</div>
+                        <div className="upload-text">Нажмите или перетащите файл</div>
+                      </div>
+                    )}
+                    <input type="file" accept="image/*" onChange={handleImageUpload} />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn" onClick={() => setModalOpen(false)}>Отмена</button>
+                <button className="btn btn-primary" onClick={() => addNode(editData)}>
+                  {modalMode === 'addNode' ? 'Создать' : 'Сохранить'}
+                </button>
+              </div>
+            </>
+          )}
+          {(modalMode === 'addCluster' || modalMode === 'editCluster') && editData && (
+            <>
+              <div className="modal-header">
+                <h3>{modalMode === 'addCluster' ? 'Новый кластер' : 'Редактировать кластер'}</h3>
+                <button className="btn btn-sm" onClick={() => setModalOpen(false)}>✕</button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Название кластера</label>
+                  <input className="form-input" placeholder="Например: Группа A" value={editData.label} onChange={e => setEditData(prev => ({ ...prev, label: e.target.value }))} autoFocus />
+                </div>
+                <div className="form-group">
+                  <label>Цвет</label>
+                  <div className="color-options">
+                    {CLUSTER_COLORS.map((col, i) => (
+                      <div
+                        key={i}
+                        className={`color-option ${editData.colorIndex === i ? 'selected' : ''}`}
+                        style={{ background: col.border }}
+                        onClick={() => setEditData(prev => ({ ...prev, colorIndex: i }))}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>Ширина</label>
+                    <input className="form-input" type="number" value={editData.width} onChange={e => setEditData(prev => ({ ...prev, width: parseInt(e.target.value) || 300 }))} />
+                  </div>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>Высота</label>
+                    <input className="form-input" type="number" value={editData.height} onChange={e => setEditData(prev => ({ ...prev, height: parseInt(e.target.value) || 250 }))} />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                {modalMode === 'editCluster' && (
+                  <button className="btn btn-danger" style={{ marginRight: 'auto' }} onClick={() => {
+                    setClusters(prev => prev.filter(c => c.id !== editData.id));
+                    setModalOpen(false);
+                  }}>🗑 Удалить</button>
+                )}
+                <button className="btn" onClick={() => setModalOpen(false)}>Отмена</button>
+                <button className="btn btn-primary" onClick={() => {
+                  if (modalMode === 'addCluster') addCluster(editData);
+                  else {
+                    setClusters(prev => prev.map(c => c.id === editData.id ? { ...c, ...editData } : c));
+                    setModalOpen(false);
+                  }
+                }}>
+                  {modalMode === 'addCluster' ? 'Создать' : 'Сохранить'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* IMAGE VIEWER */}
+      <div className={`image-viewer ${imageViewer ? 'visible' : ''}`} onClick={() => setImageViewer(null)}>
+        {imageViewer && <img src={imageViewer} alt="" />}
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+</script>
+</body>
+</html>
