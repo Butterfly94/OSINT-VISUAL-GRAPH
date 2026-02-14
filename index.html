@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GraphLink OSINT — Визуализация связей</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --sf-bg-dark: #1a1a2e;
+    --sf-bg-darker: #13132b;
+    --sf-bg-darkest: #0d0d1f;
+    --sf-bg-panel: #1e1e38;
+    --sf-bg-input: #252545;
+    --sf-bg-hover: #2a2a4a;
+    --sf-bg-active: #303055;
+    --sf-border: #2d2d50;
+    --sf-border-light: #3a3a60;
+    --sf-green: #00d4aa;
+    --sf-green-dim: #00a888;
+    --sf-green-glow: rgba(0, 212, 170, 0.25);
+    --sf-green-bg: rgba(0, 212, 170, 0.08);
+    --sf-blue: #4d9de0;
+    --sf-red: #e05252;
+    --sf-purple: #9b6dff;
+    --sf-cyan: #00c8e0;
+    --sf-orange: #e8a838;
+    --sf-pink: #e0528a;
+    --sf-text: #c8c8e0;
+    --sf-text-bright: #e8e8f8;
+    --sf-text-dim: #7878a0;
+    --sf-text-muted: #505078;
+    --sf-nav-height: 42px;
+    --sf-sidebar-width: 220px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--sf-bg-darkest);
+    color: var(--sf-text);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ═══ NAVBAR ═══ */
+  .sf-navbar {
+    height: var(--sf-nav-height);
+    background: linear-gradient(180deg, #1f1f3d 0%, #181832 100%);
+    border-bottom: 1px solid var(--sf-border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    z-index: 1000;
+    position: relative;
+  }
+
+  .sf-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 16px;
+    border-right: 1px solid var(--sf-border);
+    margin-right: 4px;
+    height: 100%;
+  }
+
+  .sf-brand-icon {
+    width: 26px; height: 26px;
+    background: var(--sf-green);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sf-bg-darkest);
+    font-size: 12px;
+  }
+
+  .sf-brand-text {
+    font-family: 'Source Code Pro', monospace;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--sf-green);
+    letter-spacing: 0.5px;
+  }
+
+  .sf-brand-text span { color: var(--sf-text-dim); font-weight: 400; }
+
+  .sf-nav-tabs { display: flex; height: 100%; }
+
+  .sf-nav-tab {
+    padding: 0 14px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--sf-text-dim);
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: inherit;
+    transition: all 0.15s;
+    position: relative;
+    white-space: nowrap;
+  }
+
+  .sf-nav-tab:hover { color: var(--sf-text); background: rgba(255,255,255,0.03); }
+
+  .sf-nav-tab.active { color: var(--sf-green); background: rgba(0,212,170,0.05); }
+
+  .sf-nav-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--sf-green);
+  }
+
+  .sf-nav-tab i { font-size: 11px; }
+  .sf-nav-spacer { flex: 1; }
+
+  .sf-nav-stats {
+    display: flex;
+    gap: 14px;
+    padding: 0 16px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 11px;
+    color: var(--sf-text-muted);
+    border-left: 1px solid var(--sf-border);
+    height: 100%;
+    align-items: center;
+  }
+
+  .sf-nav-stats .sv { color: var(--sf-green); font-weight: 600; }
+
+  .sf-nav-actions {
+    display: flex;
+    gap: 4px;
+    padding-left: 12px;
+    border-left: 1px solid var(--sf-border);
+    height: 100%;
+    align-items: center;
+  }
+
+  /* ═══ BUTTONS ═══ */
+  .sf-btn {
+    padding: 5px 12px;
+    border-radius: 3px;
+    border: 1px solid var(--sf-border);
+    background: var(--sf-bg-input);
+    color: var(--sf-text);
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+
+  .sf-btn:hover { background: var(--sf-bg-hover); border-color: var(--sf-border-light); }
+
+  .sf-btn-primary {
+    background: var(--sf-green);
+    border-color: var(--sf-green);
+    color: var(--sf-bg-darkest);
+    font-weight: 600;
+  }
+
+  .sf-btn-primary:hover {
+    background: var(--sf-green-dim);
+    border-color: var(--sf-green-dim);
+    box-shadow: 0 0 12px var(--sf-green-glow);
+  }
+
+  .sf-btn-danger { color: var(--sf-red); border-color: rgba(224,82,82,0.3); }
+  .sf-btn-danger:hover { background: rgba(224,82,82,0.1); border-color: var(--sf-red); }
+  .sf-btn-sm { padding: 3px 8px; font-size: 10px; }
+
+  /* ═══ SIDEBAR ═══ */
+  .sf-sidebar {
+    position: fixed;
+    left: 0;
+    top: var(--sf-nav-height);
+    bottom: 0;
+    width: var(--sf-sidebar-width);
+    background: var(--sf-bg-darker);
+    border-right: 1px solid var(--sf-border);
+    z-index: 800;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .sf-sidebar-section { padding: 10px 0; border-bottom: 1px solid var(--sf-border); }
+
+  .sf-sidebar-title {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--sf-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    padding: 0 14px 8px;
+  }
+
+  .sf-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    font-size: 12px;
+    color: var(--sf-text-dim);
+    cursor: pointer;
+    transition: all 0.12s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+  }
+
+  .sf-sidebar-item:hover { background: var(--sf-bg-hover); color: var(--sf-text); }
+
+  .sf-sidebar-item.active {
+    background: var(--sf-green-bg);
+    color: var(--sf-green);
+    border-right: 2px solid var(--sf-green);
+  }
+
+  .sf-sidebar-item i { width: 16px; text-align: center; font-size: 11px; }
+
+  .sf-sidebar-item .badge {
+    margin-left: auto;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--sf-bg-active);
+    color: var(--sf-text-dim);
+  }
+
+  .sf-sidebar-item.active .badge { background: var(--sf-green-bg); color: var(--sf-green); }
+
+  .sf-ndot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ═══ MAIN ═══ */
+  .sf-main {
+    position: fixed;
+    left: var(--sf-sidebar-width);
+    top: var(--sf-nav-height);
+    right: 0;
+    bottom: 24px;
+    overflow: hidden;
+    cursor: grab;
+  }
+
+  .sf-main.panning { cursor: grabbing; }
+  .sf-main.connecting { cursor: crosshair; }
+
+  .sf-canvas { position: absolute; transform-origin: 0 0; }
+
+  .sf-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(45,45,80,0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(45,45,80,0.3) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .sf-grid-dots {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(0,212,170,0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ═══ EDGES ═══ */
+  .sf-edges {
+    position: absolute;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .sf-edge {
+    stroke: rgba(0,212,170,0.2);
+    stroke-width: 1.5;
+    fill: none;
+  }
+
+  .sf-edge:hover { stroke: var(--sf-green); stroke-width: 2.5; pointer-events: stroke; cursor: pointer; }
+
+  .sf-edge.selected {
+    stroke: var(--sf-green);
+    stroke-width: 2;
+    stroke-dasharray: 8 4;
+    animation: ep 1.5s infinite;
+  }
+
+  @keyframes ep { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .sf-elabel {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 9px;
+    fill: var(--sf-text-muted);
+    pointer-events: all;
+    cursor: pointer;
+  }
+
+  .sf-elabel:hover { fill: var(--sf-green); }
+
+  .sf-elbg { fill: var(--sf-bg-darkest); stroke: var(--sf-border); stroke-width: 0.5; rx: 2; }
+
+  /* ═══ NODES ═══ */
+  .sf-node {
+    position: absolute;
+    cursor: move;
+    user-select: none;
+    z-index: 10;
+  }
+
+  .sf-node:hover { z-index: 20; }
+  .sf-node.dimmed { opacity: 0.15; }
+
+  .sf-nc { display: flex; flex-direction: column; align-items: center; }
+
+  .sf-nav {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: 2px solid var(--sf-border-light);
+    background: var(--sf-bg-panel);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: all 0.2s;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  }
+
+  .sf-nav img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+  .sf-node:hover .sf-nav {
+    border-color: var(--sf-green);
+    box-shadow: 0 0 16px var(--sf-green-glow), 0 2px 12px rgba(0,0,0,0.4);
+    transform: scale(1.08);
+  }
+
+  .sf-node.selected .sf-nav {
+    border-color: var(--sf-green);
+    box-shadow: 0 0 0 3px var(--sf-green-glow), 0 0 20px var(--sf-green-glow);
+  }
+
+  .sf-ntdot {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--sf-bg-darkest);
+    z-index: 5;
+  }
+
+  .sf-nlabel { margin-top: 6px; text-align: center; max-width: 120px; }
+
+  .sf-nname {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--sf-text-bright);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  }
+
+  .sf-ntype {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 9px;
+    color: var(--sf-text-muted);
+    margin-top: 1px;
+  }
+
+  .sf-popup {
+    position: absolute;
+    top: -8px; left: 64px;
+    background: var(--sf-bg-panel);
+    border: 1px solid var(--sf-border-light);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--sf-text);
+    max-width: 220px;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    pointer-events: none;
+    display: none;
+    line-height: 1.4;
+  }
+
+  .sf-node:hover .sf-popup { display: block; }
+  .sf-popup .pt { font-weight: 600; color: var(--sf-green); margin-bottom: 3px; font-size: 12px; }
+  .sf-popup .pty { font-family: 'Source Code Pro', monospace; font-size: 9px; color: var(--sf-text-muted); margin-bottom: 4px; }
+
+  .sf-cdot {
+    position: absolute;
+    width: 10px; height: 10px;
+    background: var(--sf-bg-active);
+    border: 2px solid var(--sf-border-light);
+    border-radius: 50%;
+    cursor: crosshair;
+    opacity: 0;
+    transition: all 0.15s;
+    z-index: 30;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .sf-cdot.l { left: -14px; }
+  .sf-cdot.r { right: -14px; }
+  .sf-node:hover .sf-cdot { opacity: 1; }
+
+  .sf-cdot:hover {
+    background: var(--sf-green);
+    border-color: var(--sf-green);
+    box-shadow: 0 0 8px var(--sf-green-glow);
+    transform: translateY(-50%) scale(1.3);
+  }
+
+  /* ═══ CLUSTERS ═══ */
+  .sf-cluster {
+    position: absolute;
+    border: 1px dashed;
+    border-radius: 6px;
+    z-index: 2;
+    cursor: move;
+  }
+
+  .sf-cl-label {
+    position: absolute;
+    top: -10px; left: 12px;
+    padding: 1px 8px;
+    border-radius: 2px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+
+  /* ═══ PANEL ═══ */
+  .sf-panel {
+    position: fixed;
+    right: -380px;
+    top: var(--sf-nav-height);
+    bottom: 0;
+    width: 360px;
+    background: var(--sf-bg-darker);
+    border-left: 1px solid var(--sf-border);
+    z-index: 900;
+    transition: right 0.25s ease;
+    overflow-y: auto;
+  }
+
+  .sf-panel.open { right: 0; }
+
+  .sf-ph {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--sf-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--sf-bg-dark);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .sf-ph h3 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sf-green);
+    font-family: 'Source Code Pro', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .sf-pb { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+  .sf-f { display: flex; flex-direction: column; gap: 4px; }
+
+  .sf-f label {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--sf-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .sf-input {
+    padding: 7px 10px;
+    border-radius: 3px;
+    border: 1px solid var(--sf-border);
+    background: var(--sf-bg-input);
+    color: var(--sf-text-bright);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .sf-input:focus { border-color: var(--sf-green); box-shadow: 0 0 0 1px var(--sf-green-glow); }
+  .sf-input::placeholder { color: var(--sf-text-muted); }
+  textarea.sf-input { resize: vertical; min-height: 54px; line-height: 1.5; }
+
+  .sf-tg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+
+  .sf-to {
+    padding: 6px 4px;
+    border-radius: 3px;
+    border: 1px solid var(--sf-border);
+    background: var(--sf-bg-input);
+    color: var(--sf-text-dim);
+    cursor: pointer;
+    text-align: center;
+    font-size: 10px;
+    transition: all 0.12s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .sf-to:hover { border-color: var(--sf-text-muted); background: var(--sf-bg-hover); }
+
+  .sf-to.sel {
+    border-color: var(--sf-green);
+    background: var(--sf-green-bg);
+    color: var(--sf-green);
+  }
+
+  .sf-upload {
+    border: 1px dashed var(--sf-border-light);
+    border-radius: 4px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+    background: var(--sf-bg-input);
+  }
+
+  .sf-upload:hover { border-color: var(--sf-green); background: var(--sf-green-bg); }
+
+  .sf-upload img { max-width: 100%; max-height: 120px; border-radius: 3px; object-fit: contain; }
+
+  .sf-upload input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+  /* ═══ CONTEXT ═══ */
+  .sf-ctx {
+    position: fixed;
+    background: var(--sf-bg-panel);
+    border: 1px solid var(--sf-border-light);
+    border-radius: 4px;
+    padding: 4px;
+    min-width: 190px;
+    z-index: 2000;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+    display: none;
+  }
+
+  .sf-ctx.vis { display: block; }
+
+  .sf-ci {
+    padding: 6px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--sf-text);
+    transition: background 0.1s;
+    font-size: 12px;
+  }
+
+  .sf-ci:hover { background: var(--sf-bg-hover); }
+  .sf-ci i { width: 14px; text-align: center; font-size: 11px; color: var(--sf-text-dim); }
+  .sf-ci.dng { color: var(--sf-red); }
+  .sf-ci.dng i { color: var(--sf-red); }
+  .sf-csep { height: 1px; background: var(--sf-border); margin: 3px 6px; }
+
+  /* ═══ MODAL ═══ */
+  .sf-ov {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sf-ov.vis { display: flex; }
+
+  .sf-modal {
+    background: var(--sf-bg-dark);
+    border: 1px solid var(--sf-border-light);
+    border-radius: 6px;
+    width: 420px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  }
+
+  .sf-mh {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--sf-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--sf-bg-darker);
+  }
+
+  .sf-mh h3 { font-family: 'Source Code Pro', monospace; font-size: 13px; font-weight: 600; color: var(--sf-green); }
+  .sf-mb { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .sf-mf {
+    padding: 10px 16px;
+    border-top: 1px solid var(--sf-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    background: var(--sf-bg-darker);
+  }
+
+  /* ═══ STATUSBAR ═══ */
+  .sf-sb {
+    position: fixed;
+    bottom: 0;
+    left: var(--sf-sidebar-width);
+    right: 0;
+    height: 24px;
+    background: var(--sf-bg-darker);
+    border-top: 1px solid var(--sf-border);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 10px;
+    color: var(--sf-text-muted);
+    z-index: 800;
+    gap: 16px;
+  }
+
+  .sf-sd {
+    width: 6px; height: 6px;
+    background: var(--sf-green);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--sf-green-glow);
+  }
+
+  .sf-sb .sp { flex: 1; }
+
+  .sf-zc { display: flex; align-items: center; gap: 4px; }
+
+  .sf-zc button {
+    width: 20px; height: 18px;
+    border: 1px solid var(--sf-border);
+    background: var(--sf-bg-input);
+    color: var(--sf-text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    border-radius: 2px;
+  }
+
+  .sf-zc button:hover { background: var(--sf-bg-hover); color: var(--sf-text); }
+
+  /* ═══ SEARCH ═══ */
+  .sf-search {
+    position: fixed;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1100;
+    display: none;
+  }
+
+  .sf-search.vis { display: block; }
+
+  .sf-sbox {
+    background: var(--sf-bg-panel);
+    border: 1px solid var(--sf-green);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    box-shadow: 0 4px 20px rgba(0,212,170,0.15);
+  }
+
+  .sf-sbox i { color: var(--sf-green); font-size: 12px; }
+
+  .sf-sbox input {
+    background: none;
+    border: none;
+    color: var(--sf-text-bright);
+    padding: 8px 10px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 12px;
+    outline: none;
+    width: 260px;
+  }
+
+  .sf-sbox input::placeholder { color: var(--sf-text-muted); }
+
+  /* ═══ IMAGE VIEWER ═══ */
+  .sf-iv {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 5000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  }
+
+  .sf-iv.vis { display: flex; }
+  .sf-iv img { max-width: 90%; max-height: 90%; border-radius: 4px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+
+  .sf-empty {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .sf-empty i { font-size: 40px; color: var(--sf-text-muted); opacity: 0.2; margin-bottom: 12px; }
+  .sf-empty h2 { font-size: 15px; color: var(--sf-text-muted); font-weight: 500; margin-bottom: 4px; }
+  .sf-empty p { font-size: 12px; color: var(--sf-text-muted); opacity: 0.5; }
+
+  .sf-co { display: flex; gap: 6px; }
+
+  .sf-cop {
+    width: 24px; height: 24px;
+    border-radius: 3px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .sf-cop:hover { transform: scale(1.15); }
+  .sf-cop.sel { border-color: #fff; }
+
+  @keyframes ni { from { opacity:0; transform:scale(0.6); } to { opacity:1; transform:scale(1); } }
+  .sf-node { animation: ni 0.2s ease-out; }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--sf-border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useRef, useCallback, useEffect, useMemo } = React;
+
+const NT = {
+  person:    { label:'Персона',      icon:'fa-user',         color:'#4d9de0' },
+  org:       { label:'Организация',  icon:'fa-sitemap',      color:'#9b6dff' },
+  location:  { label:'Локация',      icon:'fa-location-dot', color:'#00d4aa' },
+  event:     { label:'Событие',      icon:'fa-calendar',     color:'#e8a838' },
+  device:    { label:'Устройство',   icon:'fa-microchip',    color:'#e05252' },
+  document:  { label:'Документ',     icon:'fa-file-lines',   color:'#00c8e0' },
+  social:    { label:'Соцсети',      icon:'fa-share-nodes',  color:'#e0528a' },
+  phone:     { label:'Телефон',      icon:'fa-phone',        color:'#4de0c8' },
+  car:       { label:'Автомобиль',   icon:'fa-car',          color:'#a78bfa' },
+  relatives: { label:'Родственники', icon:'fa-people-group', color:'#e8884d' },
+  company:   { label:'Компания',     icon:'fa-building',     color:'#6ee7b7' },
+};
+
+const CC = [
+  { bg:'rgba(0,212,170,0.04)', border:'#00d4aa', lbg:'rgba(0,212,170,0.12)' },
+  { bg:'rgba(77,157,224,0.04)', border:'#4d9de0', lbg:'rgba(77,157,224,0.12)' },
+  { bg:'rgba(155,109,255,0.04)', border:'#9b6dff', lbg:'rgba(155,109,255,0.12)' },
+  { bg:'rgba(232,168,56,0.04)', border:'#e8a838', lbg:'rgba(232,168,56,0.12)' },
+  { bg:'rgba(224,82,82,0.04)', border:'#e05252', lbg:'rgba(224,82,82,0.12)' },
+];
+
+let _c=1; const gid=()=>`n${Date.now()}_${_c++}`;
+
+function App(){
+  const [nodes,setNodes]=useState([]);
+  const [edges,setEdges]=useState([]);
+  const [clusters,setClusters]=useState([]);
+  const [sel,setSel]=useState([]);
+  const [selE,setSelE]=useState(null);
+  const [tool,setTool]=useState('select');
+  const [zoom,setZoom]=useState(1);
+  const [pan,setPan]=useState({x:0,y:0});
+  const [pOpen,setPOpen]=useState(false);
+  const [ed,setEd]=useState(null);
+  const [ctx,setCtx]=useState(null);
+  const [conn,setConn]=useState(null);
+  const [tl,setTl]=useState(null);
+  const [sOpen,setSOpen]=useState(false);
+  const [sQ,setSQ]=useState('');
+  const [iv,setIv]=useState(null);
+  const [mOpen,setMOpen]=useState(false);
+  const [mMode,setMMode]=useState('addNode');
+  const [fType,setFType]=useState(null);
+
+  const cr=useRef(null);
+  const isP=useRef(false);
+  const ps=useRef({x:0,y:0});
+  const dn=useRef(null);
+  const doff=useRef({x:0,y:0});
+  const dc=useRef(null);
+  const dcoff=useRef({x:0,y:0});
+
+  const s2c=useCallback((sx,sy)=>({x:(sx-220-pan.x)/zoom,y:(sy-42-pan.y)/zoom}),[pan,zoom]);
+
+  useEffect(()=>{
+    const h=(e)=>{
+      if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+      if(e.key==='Delete'||e.key==='Backspace'){
+        if(sel.length){setNodes(p=>p.filter(n=>!sel.includes(n.id)));setEdges(p=>p.filter(e=>!sel.includes(e.from)&&!sel.includes(e.to)));setSel([]);}
+        if(selE){setEdges(p=>p.filter(e=>e.id!==selE));setSelE(null);}
+      }
+      if(e.key==='Escape'){setSel([]);setSelE(null);setCtx(null);setConn(null);setTl(null);setSOpen(false);setPOpen(false);setMOpen(false);}
+      if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();setSOpen(v=>!v);}
+    };
+    window.addEventListener('keydown',h);
+    return()=>window.removeEventListener('keydown',h);
+  },[sel,selE]);
+
+  const onMD=(e)=>{
+    const t=e.target;
+    if(e.button===0&&(t===cr.current?.parentElement||t.classList.contains('sf-grid')||t.classList.contains('sf-grid-dots'))){
+      isP.current=true;
+      ps.current={x:e.clientX-pan.x,y:e.clientY-pan.y};
+      setSel([]);setSelE(null);setCtx(null);
+    }
+  };
+
+  const onMM=(e)=>{
+    if(isP.current)setPan({x:e.clientX-ps.current.x,y:e.clientY-ps.current.y});
+    if(dn.current){const p=s2c(e.clientX,e.clientY);setNodes(pr=>pr.map(n=>n.id===dn.current?{...n,x:p.x-doff.current.x,y:p.y-doff.current.y}:n));}
+    if(dc.current){const p=s2c(e.clientX,e.clientY);setClusters(pr=>pr.map(c=>c.id===dc.current?{...c,x:p.x-dcoff.current.x,y:p.y-dcoff.current.y}:c));}
+    if(conn){const p=s2c(e.clientX,e.clientY);setTl({x:p.x,y:p.y});}
+  };
+
+  const onMU=()=>{isP.current=false;dn.current=null;dc.current=null;};
+
+  const onW=useCallback((e)=>{e.preventDefault();setZoom(z=>Math.min(3,Math.max(0.15,z+(e.deltaY>0?-0.08:0.08))));},[]);
+
+  useEffect(()=>{
+    const el=cr.current?.parentElement;
+    if(el)el.addEventListener('wheel',onW,{passive:false});
+    return()=>el?.removeEventListener('wheel',onW);
+  },[onW]);
+
+  const onDbl=(e)=>{
+    const t=e.target;
+    if(t!==cr.current?.parentElement&&!t.classList.contains('sf-grid')&&!t.classList.contains('sf-grid-dots'))return;
+    const p=s2c(e.clientX,e.clientY);
+    setEd({title:'',description:'',type:'person',image:null,x:p.x-26,y:p.y-26});
+    setMMode('addNode');setMOpen(true);
+  };
+
+  const onCM=(e)=>{e.preventDefault();const p=s2c(e.clientX,e.clientY);setCtx({x:e.clientX,y:e.clientY,cx:p.x,cy:p.y});};
+
+  const onND=(e,id)=>{
+    e.stopPropagation();if(tool==='connect')return;
+    const nd=nodes.find(n=>n.id===id);const p=s2c(e.clientX,e.clientY);
+    dn.current=id;doff.current={x:p.x-nd.x,y:p.y-nd.y};
+    if(e.shiftKey)setSel(p=>p.includes(id)?p.filter(i=>i!==id):[...p,id]);
+    else setSel([id]);
+    setSelE(null);
+  };
+
+  const onCS=(e,id)=>{e.stopPropagation();setConn(id);};
+  const onCE=(e,id)=>{
+    e.stopPropagation();
+    if(conn&&conn!==id){const ex=edges.find(ed=>(ed.from===conn&&ed.to===id)||(ed.from===id&&ed.to===conn));if(!ex)setEdges(p=>[...p,{id:gid(),from:conn,to:id,label:''}]);}
+    setConn(null);setTl(null);
+  };
+
+  const onCLD=(e,id)=>{
+    e.stopPropagation();const c=clusters.find(x=>x.id===id);const p=s2c(e.clientX,e.clientY);
+    dc.current=id;dcoff.current={x:p.x-c.x,y:p.y-c.y};
+  };
+
+  const addN=(d)=>{setNodes(p=>[...p,{id:gid(),title:d.title||'Узел',description:d.description||'',type:d.type||'person',image:d.image||null,x:d.x||400,y:d.y||300}]);setMOpen(false);};
+  const updN=(id,d)=>{setNodes(p=>p.map(n=>n.id===id?{...n,...d}:n));setPOpen(false);};
+  const addC=(d)=>{setClusters(p=>[...p,{id:gid(),label:d.label||'Кластер',x:d.x||300,y:d.y||200,width:d.width||300,height:d.height||200,colorIndex:d.colorIndex||0}]);setMOpen(false);};
+
+  const onImg=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=(ev)=>setEd(p=>({...p,image:ev.target.result}));r.readAsDataURL(f);};
+
+  const expD=()=>{const d=JSON.stringify({nodes,edges,clusters},null,2);const b=new Blob([d],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='graphlink-export.json';a.click();URL.revokeObjectURL(u);};
+
+  const impD=()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=(e)=>{const r=new FileReader();r.onload=(ev)=>{try{const d=JSON.parse(ev.target.result);if(d.nodes)setNodes(d.nodes);if(d.edges)setEdges(d.edges);if(d.clusters)setClusters(d.clusters);}catch{alert('Error');}};r.readAsText(e.target.files[0]);};inp.click();};
+
+  const vn=useMemo(()=>{let r=nodes;if(fType)r=r.filter(n=>n.type===fType);return r;},[nodes,fType]);
+  const sm=useMemo(()=>{if(!sQ)return new Set(vn.map(n=>n.id));const q=sQ.toLowerCase();return new Set(vn.filter(n=>n.title.toLowerCase().includes(q)||n.description.toLowerCase().includes(q)).map(n=>n.id));},[vn,sQ]);
+  const tc=useMemo(()=>{const c={};for(const n of nodes)c[n.type]=(c[n.type]||0)+1;return c;},[nodes]);
+
+  return(
+    <>
+      <div className="sf-navbar">
+        <div className="sf-brand">
+          <div className="sf-brand-icon"><i className="fas fa-project-diagram" style={{fontSize:12}}/></div>
+          <div className="sf-brand-text">GRAPHLINK <span>OSINT</span></div>
+        </div>
+        <div className="sf-nav-tabs">
+          <button className="sf-nav-tab active"><i className="fas fa-project-diagram"/> Graph</button>
+          <button className="sf-nav-tab" onClick={()=>setSOpen(v=>!v)}><i className="fas fa-search"/> Search</button>
+        </div>
+        <div className="sf-nav-spacer"/>
+        <div className="sf-nav-stats">
+          <span><span className="sv">{nodes.length}</span> nodes</span>
+          <span><span className="sv">{edges.length}</span> edges</span>
+          <span><span className="sv">{clusters.length}</span> clusters</span>
+        </div>
+        <div className="sf-nav-actions">
+          <button className="sf-btn" onClick={impD}><i className="fas fa-upload"/> Import</button>
+          <button className="sf-btn" onClick={expD}><i className="fas fa-download"/> Export</button>
+          <button className="sf-btn sf-btn-primary" onClick={()=>{setEd({title:'',description:'',type:'person',image:null,x:(window.innerWidth/2-pan.x)/zoom,y:(window.innerHeight/2-pan.y)/zoom});setMMode('addNode');setMOpen(true);}}><i className="fas fa-plus"/> New Node</button>
+        </div>
+      </div>
+
+      <div className="sf-sidebar">
+        <div className="sf-sidebar-section">
+          <div className="sf-sidebar-title">Tools</div>
+          <button className={`sf-sidebar-item ${tool==='select'?'active':''}`} onClick={()=>setTool('select')}><i className="fas fa-mouse-pointer"/> Выделение</button>
+          <button className={`sf-sidebar-item ${tool==='connect'?'active':''}`} onClick={()=>setTool('connect')}><i className="fas fa-link"/> Связь</button>
+          <button className="sf-sidebar-item" onClick={()=>{setEd({label:'',colorIndex:0,x:(window.innerWidth/2-pan.x)/zoom-150,y:(window.innerHeight/2-pan.y)/zoom-100,width:300,height:200});setMMode('addCluster');setMOpen(true);}}><i className="fas fa-object-group"/> Кластер</button>
+        </div>
+        <div className="sf-sidebar-section">
+          <div className="sf-sidebar-title">Entity Types</div>
+          <button className={`sf-sidebar-item ${!fType?'active':''}`} onClick={()=>setFType(null)}><i className="fas fa-layer-group"/> Все типы <span className="badge">{nodes.length}</span></button>
+          {Object.entries(NT).map(([k,v])=>(
+            <button key={k} className={`sf-sidebar-item ${fType===k?'active':''}`} onClick={()=>setFType(fType===k?null:k)}>
+              <div className="sf-ndot" style={{background:v.color}}/> {v.label} {tc[k]?<span className="badge">{tc[k]}</span>:null}
+            </button>
+          ))}
+        </div>
+        <div className="sf-sidebar-section">
+          <div className="sf-sidebar-title">Actions</div>
+          <button className="sf-sidebar-item" onClick={()=>{setZoom(1);setPan({x:0,y:0})}}><i className="fas fa-compress-arrows-alt"/> Сброс вида</button>
+          <button className="sf-sidebar-item" onClick={()=>setSOpen(v=>!v)}><i className="fas fa-search"/> Поиск</button>
+        </div>
+      </div>
+
+      <div className={`sf-search ${sOpen?'vis':''}`}>
+        <div className="sf-sbox">
+          <i className="fas fa-search"/>
+          <input placeholder="Search entities..." value={sQ} onChange={e=>setSQ(e.target.value)} autoFocus/>
+          <button className="sf-btn sf-btn-sm" onClick={()=>{setSOpen(false);setSQ('')}}>ESC</button>
+        </div>
+      </div>
+
+      <div className={`sf-main ${isP.current?'panning':''} ${conn?'connecting':''}`} onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onDoubleClick={onDbl} onContextMenu={onCM}>
+        <div className="sf-grid" style={{backgroundPosition:`${pan.x%40}px ${pan.y%40}px`}}/>
+        <div className="sf-grid-dots" style={{backgroundPosition:`${pan.x%40}px ${pan.y%40}px`}}/>
+
+        <div className="sf-canvas" ref={cr} style={{transform:`translate(${pan.x}px,${pan.y}px) scale(${zoom})`}}>
+          {clusters.map(cl=>{const co=CC[cl.colorIndex%CC.length];return(
+            <div key={cl.id} className="sf-cluster" style={{left:cl.x,top:cl.y,width:cl.width,height:cl.height,background:co.bg,borderColor:co.border}}
+              onMouseDown={e=>onCLD(e,cl.id)} onDoubleClick={e=>{e.stopPropagation();setEd(cl);setMMode('editCluster');setMOpen(true);}}>
+              <div className="sf-cl-label" style={{background:co.lbg,color:co.border}}>{cl.label}</div>
+            </div>
+          );})}
+
+          <svg className="sf-edges" style={{width:'10000px',height:'10000px',left:'-5000px',top:'-5000px'}}>
+            <defs>
+              <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="rgba(0,212,170,0.4)"/></marker>
+              <marker id="aha" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="var(--sf-green)"/></marker>
+            </defs>
+            {edges.map(edge=>{
+              const fn=nodes.find(n=>n.id===edge.from);const tn=nodes.find(n=>n.id===edge.to);
+              if(!fn||!tn)return null;
+              const f={x:fn.x+26+5000,y:fn.y+26+5000};const t={x:tn.x+26+5000,y:tn.y+26+5000};const m={x:(f.x+t.x)/2,y:(f.y+t.y)/2};
+              const iS=selE===edge.id;
+              return(<g key={edge.id}>
+                <line x1={f.x} y1={f.y} x2={t.x} y2={t.y} className={`sf-edge ${iS?'selected':''}`} markerEnd={iS?'url(#aha)':'url(#ah)'} style={{pointerEvents:'stroke',cursor:'pointer'}}
+                  onClick={e=>{e.stopPropagation();setSelE(edge.id);setSel([]);}}
+                  onDoubleClick={e=>{e.stopPropagation();const l=prompt('Подпись связи:',edge.label||'');if(l!==null)setEdges(p=>p.map(ed=>ed.id===edge.id?{...ed,label:l}:ed));}}/>
+                {edge.label&&(<><rect x={m.x-edge.label.length*3.2-4} y={m.y-8} width={edge.label.length*6.4+8} height={16} className="sf-elbg"/><text x={m.x} y={m.y+3.5} textAnchor="middle" className="sf-elabel">{edge.label}</text></>)}
+              </g>);
+            })}
+            {conn&&tl&&(()=>{const fn=nodes.find(n=>n.id===conn);if(!fn)return null;return<line x1={fn.x+26+5000} y1={fn.y+26+5000} x2={tl.x+5000} y2={tl.y+5000} stroke="var(--sf-green)" strokeWidth="1.5" strokeDasharray="6 4" opacity="0.7"/>;})()}
+          </svg>
+
+          {vn.map(node=>{const t=NT[node.type]||NT.person;const iS=sel.includes(node.id);const iD=sQ&&!sm.has(node.id);return(
+            <div key={node.id} className={`sf-node ${iS?'selected':''} ${iD?'dimmed':''}`} style={{left:node.x,top:node.y}}
+              onMouseDown={e=>onND(e,node.id)} onMouseUp={e=>{if(conn)onCE(e,node.id);}}
+              onDoubleClick={e=>{e.stopPropagation();setEd({...node});setPOpen(true);}}>
+              <div className="sf-nc">
+                <div className="sf-nav" style={{borderColor:iS?'var(--sf-green)':t.color}}>
+                  {node.image?<img src={node.image} alt="" onClick={e=>{e.stopPropagation();setIv(node.image);}}/>:<i className={`fas ${t.icon}`} style={{color:t.color,fontSize:18}}/>}
+                  <div className="sf-ntdot" style={{background:t.color}}/>
+                </div>
+                <div className="sf-nlabel">
+                  <div className="sf-nname">{node.title}</div>
+                  <div className="sf-ntype">{t.label}</div>
+                </div>
+                {node.description&&<div className="sf-popup"><div className="pt">{node.title}</div><div className="pty"><i className={`fas ${t.icon}`}/> {t.label}</div>{node.description}</div>}
+              </div>
+              <div className="sf-cdot l" onMouseDown={e=>onCS(e,node.id)}/>
+              <div className="sf-cdot r" onMouseDown={e=>onCS(e,node.id)}/>
+            </div>
+          );})}
+        </div>
+
+        {nodes.length===0&&<div className="sf-empty"><i className="fas fa-project-diagram"/><br/><h2>Граф пуст</h2><p>Дважды кликните на холст или нажмите New Node</p></div>}
+      </div>
+
+      <div className="sf-sb">
+        <div className="sf-sd"/> <span>READY</span> <span>|</span> <span>Tool: {tool==='select'?'SELECT':'CONNECT'}</span>
+        {sel.length>0&&<><span>|</span><span>Selected: {sel.length}</span></>}
+        <div className="sp"/>
+        <div className="sf-zc">
+          <button onClick={()=>setZoom(z=>Math.max(0.15,z-0.15))}>−</button>
+          <span style={{minWidth:40,textAlign:'center'}}>{Math.round(zoom*100)}%</span>
+          <button onClick={()=>setZoom(z=>Math.min(3,z+0.15))}>+</button>
+        </div>
+      </div>
+
+      {ctx&&<div className="sf-ctx vis" style={{left:ctx.x,top:ctx.y}}>
+        <div className="sf-ci" onClick={()=>{setEd({title:'',description:'',type:'person',image:null,x:ctx.cx,y:ctx.cy});setMMode('addNode');setMOpen(true);setCtx(null);}}><i className="fas fa-plus"/> Добавить узел</div>
+        <div className="sf-ci" onClick={()=>{setEd({label:'',colorIndex:0,x:ctx.cx-150,y:ctx.cy-100,width:300,height:200});setMMode('addCluster');setMOpen(true);setCtx(null);}}><i className="fas fa-object-group"/> Добавить кластер</div>
+        <div className="sf-csep"/>
+        {sel.length>0&&<div className="sf-ci dng" onClick={()=>{setNodes(p=>p.filter(n=>!sel.includes(n.id)));setEdges(p=>p.filter(e=>!sel.includes(e.from)&&!sel.includes(e.to)));setSel([]);setCtx(null);}}><i className="fas fa-trash"/> Удалить выбранные</div>}
+        <div className="sf-ci" onClick={()=>{setZoom(1);setPan({x:0,y:0});setCtx(null);}}><i className="fas fa-compress-arrows-alt"/> Сбросить вид</div>
+      </div>}
+
+      <div className={`sf-panel ${pOpen?'open':''}`}>
+        <div className="sf-ph"><h3><i className="fas fa-pen-to-square"/> Edit Node</h3><button className="sf-btn sf-btn-sm" onClick={()=>setPOpen(false)}><i className="fas fa-xmark"/></button></div>
+        {ed&&pOpen&&<div className="sf-pb">
+          <div className="sf-f"><label>Name</label><input className="sf-input" value={ed.title} onChange={e=>setEd(p=>({...p,title:e.target.value}))}/></div>
+          <div className="sf-f"><label>Description</label><textarea className="sf-input" value={ed.description} onChange={e=>setEd(p=>({...p,description:e.target.value}))} rows={3}/></div>
+          <div className="sf-f"><label>Type</label><div className="sf-tg">{Object.entries(NT).map(([k,v])=>(<div key={k} className={`sf-to ${ed.type===k?'sel':''}`} onClick={()=>setEd(p=>({...p,type:k}))}><i className={`fas ${v.icon}`} style={{color:v.color,fontSize:14}}/><span style={{fontSize:9}}>{v.label}</span></div>))}</div></div>
+          <div className="sf-f"><label>Image</label><div className="sf-upload">
+            {ed.image?<><img src={ed.image} alt=""/><br/><button className="sf-btn sf-btn-sm sf-btn-danger" style={{marginTop:6}} onClick={()=>setEd(p=>({...p,image:null}))}><i className="fas fa-trash"/> Remove</button></>:<div><i className="fas fa-cloud-arrow-up" style={{fontSize:20,color:'var(--sf-text-muted)'}}/><div style={{fontSize:11,color:'var(--sf-text-muted)',marginTop:4}}>Click to upload</div></div>}
+            <input type="file" accept="image/*" onChange={onImg}/>
+          </div></div>
+          <div style={{display:'flex',gap:6}}>
+            <button className="sf-btn sf-btn-primary" style={{flex:1}} onClick={()=>updN(ed.id,ed)}><i className="fas fa-check"/> Save</button>
+            <button className="sf-btn sf-btn-danger" onClick={()=>{setNodes(p=>p.filter(n=>n.id!==ed.id));setEdges(p=>p.filter(e=>e.from!==ed.id&&e.to!==ed.id));setPOpen(false);}}><i className="fas fa-trash"/></button>
+          </div>
+        </div>}
+      </div>
+
+      <div className={`sf-ov ${mOpen?'vis':''}`} onClick={()=>setMOpen(false)}>
+        <div className="sf-modal" onClick={e=>e.stopPropagation()}>
+          {mMode==='addNode'&&ed&&<>
+            <div className="sf-mh"><h3><i className="fas fa-plus"/> NEW NODE</h3><button className="sf-btn sf-btn-sm" onClick={()=>setMOpen(false)}><i className="fas fa-xmark"/></button></div>
+            <div className="sf-mb">
+              <div className="sf-f"><label>Name</label><input className="sf-input" placeholder="Entity name..." value={ed.title} onChange={e=>setEd(p=>({...p,title:e.target.value}))} autoFocus/></div>
+              <div className="sf-f"><label>Description</label><textarea className="sf-input" placeholder="Details..." value={ed.description} onChange={e=>setEd(p=>({...p,description:e.target.value}))} rows={3}/></div>
+              <div className="sf-f"><label>Type</label><div className="sf-tg">{Object.entries(NT).map(([k,v])=>(<div key={k} className={`sf-to ${ed.type===k?'sel':''}`} onClick={()=>setEd(p=>({...p,type:k}))}><i className={`fas ${v.icon}`} style={{color:v.color,fontSize:14}}/><span style={{fontSize:9}}>{v.label}</span></div>))}</div></div>
+              <div className="sf-f"><label>Image</label><div className="sf-upload">
+                {ed.image?<><img src={ed.image} alt=""/><br/><button className="sf-btn sf-btn-sm sf-btn-danger" style={{marginTop:6}} onClick={()=>setEd(p=>({...p,image:null}))}><i className="fas fa-trash"/> Remove</button></>:<div><i className="fas fa-cloud-arrow-up" style={{fontSize:20,color:'var(--sf-text-muted)'}}/><div style={{fontSize:11,color:'var(--sf-text-muted)',marginTop:4}}>Click or drag file</div></div>}
+                <input type="file" accept="image/*" onChange={onImg}/>
+              </div></div>
+            </div>
+            <div className="sf-mf"><button className="sf-btn" onClick={()=>setMOpen(false)}>Cancel</button><button className="sf-btn sf-btn-primary" onClick={()=>addN(ed)}><i className="fas fa-plus"/> Create</button></div>
+          </>}
+          {(mMode==='addCluster'||mMode==='editCluster')&&ed&&<>
+            <div className="sf-mh"><h3><i className="fas fa-object-group"/> {mMode==='addCluster'?'NEW CLUSTER':'EDIT CLUSTER'}</h3><button className="sf-btn sf-btn-sm" onClick={()=>setMOpen(false)}><i className="fas fa-xmark"/></button></div>
+            <div className="sf-mb">
+              <div className="sf-f"><label>Label</label><input className="sf-input" placeholder="Cluster name..." value={ed.label} onChange={e=>setEd(p=>({...p,label:e.target.value}))} autoFocus/></div>
+              <div className="sf-f"><label>Color</label><div className="sf-co">{CC.map((c,i)=>(<div key={i} className={`sf-cop ${ed.colorIndex===i?'sel':''}`} style={{background:c.border}} onClick={()=>setEd(p=>({...p,colorIndex:i}))}/>))}</div></div>
+              <div style={{display:'flex',gap:8}}>
+                <div className="sf-f" style={{flex:1}}><label>Width</label><input className="sf-input" type="number" value={ed.width} onChange={e=>setEd(p=>({...p,width:parseInt(e.target.value)||300}))}/></div>
+                <div className="sf-f" style={{flex:1}}><label>Height</label><input className="sf-input" type="number" value={ed.height} onChange={e=>setEd(p=>({...p,height:parseInt(e.target.value)||200}))}/></div>
+              </div>
+            </div>
+            <div className="sf-mf">
+              {mMode==='editCluster'&&<button className="sf-btn sf-btn-danger" style={{marginRight:'auto'}} onClick={()=>{setClusters(p=>p.filter(c=>c.id!==ed.id));setMOpen(false);}}><i className="fas fa-trash"/> Delete</button>}
+              <button className="sf-btn" onClick={()=>setMOpen(false)}>Cancel</button>
+              <button className="sf-btn sf-btn-primary" onClick={()=>{if(mMode==='addCluster')addC(ed);else{setClusters(p=>p.map(c=>c.id===ed.id?{...c,...ed}:c));setMOpen(false);}}}><i className="fas fa-check"/> {mMode==='addCluster'?'Create':'Save'}</button>
+            </div>
+          </>}
+        </div>
+      </div>
+
+      <div className={`sf-iv ${iv?'vis':''}`} onClick={()=>setIv(null)}>{iv&&<img src={iv} alt=""/>}</div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(<App/>);
+</script>
+</body>
+</html>
