@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OSINT Reports</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;600;700;800&display=swap');
+:root{--bg:#0a0b0f;--bg2:#12141c;--card:#161825;--bd:#2a2d3e;--tx:#e8eaf0;--mu:#8b8fa3;--ac:#4a6cf7;--ac2:#7c5cfc;--ok:#4af78a;--wr:#f7c94a;--dn:#f74a6a;--cy:#4af7e8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:'Outfit',sans-serif;display:grid;grid-template-columns:440px 1fr;gap:1px;background:var(--bd);min-height:100vh}
+.panel{background:var(--bg2);padding:24px;overflow-y:auto;height:100vh}
+.preview{background:var(--bg);padding:32px;overflow-y:auto;height:100vh}
+h1{font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:var(--mu);font-size:11px;margin:4px 0 16px;font-family:'JetBrains Mono',monospace}
+.back{color:var(--ac);font-size:11px;text-decoration:none;display:inline-block;margin-bottom:12px}
+label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--mu);margin:14px 0 6px;font-weight:600}
+input,textarea{width:100%;background:var(--card);border:1px solid var(--bd);color:var(--tx);padding:11px 13px;border-radius:8px;font-family:inherit;font-size:13px}
+input:focus,textarea:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(74,108,247,.15)}
+textarea{resize:vertical;font-family:'JetBrains Mono',monospace;font-size:11px}
+.btn{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;border:none;padding:12px 16px;border-radius:8px;font-weight:600;cursor:pointer;width:100%;margin-top:10px;font-family:inherit;font-size:13px}
+.btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(74,108,247,.3)}
+.btn.ok{background:linear-gradient(135deg,var(--ok),#2db86a);color:#000}
+.btn.wr{background:linear-gradient(135deg,var(--wr),#d49a00);color:#000}
+.ph-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.ph-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid var(--bd);cursor:pointer}
+.divider{height:1px;background:var(--bd);margin:18px 0}
+.hint{font-size:10px;color:var(--mu);margin-top:4px;font-family:'JetBrains Mono',monospace;line-height:1.5}
+#report{max-width:860px;margin:0 auto;background:linear-gradient(180deg,#0e1018,#0a0b0f);border:1px solid var(--bd);border-radius:14px;padding:48px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+#report .hdr{border-bottom:2px solid var(--ac);padding-bottom:22px;margin-bottom:26px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+#report .hdr h1{font-size:30px;margin-bottom:6px}
+#report .hdr .meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mu);text-align:right;line-height:1.7}
+#report .badge{display:inline-block;padding:5px 12px;background:rgba(247,74,106,.12);border:1px solid var(--dn);border-radius:20px;font-size:9px;text-transform:uppercase;letter-spacing:1.8px;color:var(--dn);font-weight:700}
+#report h2{font-size:13px;text-transform:uppercase;letter-spacing:2px;color:var(--ac2);margin:30px 0 14px;padding-left:14px;border-left:3px solid var(--ac2);display:flex;align-items:center;gap:8px}
+#report h2 .cnt{background:var(--card);border:1px solid var(--bd);padding:2px 8px;border-radius:10px;font-size:10px;color:var(--mu);letter-spacing:0}
+#report .summary{background:linear-gradient(135deg,rgba(74,108,247,.08),rgba(124,92,252,.08));border:1px solid var(--bd);border-left:3px solid var(--cy);border-radius:10px;padding:18px 20px;margin-top:10px;font-size:13px;line-height:1.7}
+#report .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:14px}
+#report .stat{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px 8px;text-align:center}
+#report .stat .v{font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#report .stat .l{font-size:8px;text-transform:uppercase;color:var(--mu);letter-spacing:1px;margin-top:4px}
+#report .conf-bar{height:10px;background:var(--card);border:1px solid var(--bd);border-radius:5px;overflow:hidden;margin-top:14px}
+#report .conf-bar div{height:100%;background:linear-gradient(90deg,var(--ok),var(--cy),var(--ac))}
+#report .conf-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--mu);margin-top:6px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+#report .agg{display:grid;grid-template-columns:140px 1fr;gap:14px;padding:10px 0;border-bottom:1px dashed var(--bd);font-size:13px;align-items:start}
+#report .agg b{color:var(--mu);font-weight:500;text-transform:uppercase;font-size:9px;letter-spacing:1.2px;padding-top:3px}
+#report .agg .vals span{display:inline-block;background:var(--card);border:1px solid var(--bd);padding:4px 10px;border-radius:6px;margin:2px 4px 2px 0;font-size:12px;font-family:'JetBrains Mono',monospace}
+#report .agg .vals span.primary{border-color:var(--ac);background:rgba(74,108,247,.1);color:var(--ac)}
+#report .photos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+#report .photos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--bd)}
+#report .rec{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--ac);border-radius:8px;padding:14px 16px;margin-top:10px}
+#report .rec .rh{font-size:10px;text-transform:uppercase;color:var(--ac);letter-spacing:1.5px;margin-bottom:8px;font-weight:700;font-family:'JetBrains Mono',monospace}
+#report .rec .rf{font-size:11px;padding:3px 0;display:flex;gap:10px}
+#report .rec .rf b{color:var(--mu);font-weight:500;min-width:120px;text-transform:uppercase;font-size:9px;letter-spacing:1px;padding-top:2px}
+#report .ftr{margin-top:36px;padding-top:20px;border-top:1px solid var(--bd);text-align:center;font-size:9px;color:var(--mu);font-family:'JetBrains Mono',monospace;letter-spacing:1px}
+@media print{body{display:block}.panel{display:none}.preview{padding:0}}
+</style></head><body>
+
+<div class="panel">
+<a class="back" href="index.html">← к графу</a>
+<h1>OSINT REPORTS</h1>
+<div class="sub">// парсер записей • генератор отчётов</div>
+<label>Заголовок</label><input id="f-title" value="OSINT Investigation">
+<label>Кодовое имя цели</label><input id="f-code" placeholder="TARGET-001">
+<label>Данные (вставь массив записей)</label>
+<textarea id="f-raw" rows="14" placeholder="📌 Запись #1&#10;  • ФИО: Иванов Иван&#10;  • Телефон: +7..."></textarea>
+<div class="hint">Формат: «📌 Запись #N» + строки «• Ключ: Значение». Парсер сам соберёт всё, найдёт уникальные значения и посчитает достоверность.</div>
+<label>📸 Фотографии</label>
+<input type="file" id="ph-input" accept="image/*" multiple onchange="addPhotos(event)">
+<div class="ph-grid" id="ph-grid"></div>
+<div class="divider"></div>
+<button class="btn" onclick="render()">⚡ Сгенерировать отчёт</button>
+<button class="btn ok" onclick="exportPDF()">📄 Скачать PDF</button>
+<button class="btn wr" onclick="exportHTML()">💾 Скачать HTML</button>
+</div>
+
+<div class="preview"><div id="report"><div style="text-align:center;color:var(--mu);padding:80px 20px;font-family:'JetBrains Mono',monospace;font-size:12px">// вставь данные слева и нажми «Сгенерировать»</div></div></div>
+
+<script>
+const state={photos:[]};
+const f=id=>document.getElementById(id);
+const KEYMAP={'фио':'ФИО','имя':'ФИО','дата рождения':'Дата рождения','др':'Дата рождения','паспорт':'Паспорт','инн':'ИНН','снилс':'СНИЛС','телефон':'Телефон','тел':'Телефон','phone':'Телефон','email':'Email','почта':'Email','адрес':'Адрес','address':'Адрес','локация':'Локация','регион':'Локация','пол':'Пол','номер ип':'Номер ИП','имя ип':'ОСП/Имя ИП','осп':'ОСП/Имя ИП','сумма долга':'Долг','долг':'Долг','дата начала':'Дата ИП','дата ип':'Дата ИП','причина':'Причина'};
+const ORDER=['ФИО','Дата рождения','Пол','Телефон','Email','Паспорт','ИНН','СНИЛС','Адрес','Локация','Долг','Номер ИП','ОСП/Имя ИП','Дата ИП','Причина'];
+
+function normKey(k){return KEYMAP[k.toLowerCase().trim()]||k.trim();}
+function normValue(key,v){
+  v=v.trim();
+  if(key==='ФИО')return v.replace(/\s+/g,' ').split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' ');
+  if(key==='Дата рождения'){const m=v.match(/(\d{1,4})[.\-/](\d{1,2})[.\-/](\d{1,4})/);if(m){const a=+m[1];if(a>1000)return `${String(m[3]).padStart(2,'0')}.${String(m[2]).padStart(2,'0')}.${a}`;return `${String(m[1]).padStart(2,'0')}.${String(m[2]).padStart(2,'0')}.${m[3]}`;}return v;}
+  if(key==='Телефон'){let d=v.replace(/\D/g,'');if(d.length===11&&d[0]==='8')d='7'+d.slice(1);if(d.length===11)return '+'+d[0]+' ('+d.slice(1,4)+') '+d.slice(4,7)+'-'+d.slice(7,9)+'-'+d.slice(9);return v;}
+  if(key==='Паспорт'){const d=v.replace(/\D/g,'');if(d.length===10)return d.slice(0,4)+' '+d.slice(4);return v;}
+  if(key==='СНИЛС'){const d=v.replace(/\D/g,'');if(d.length===11)return d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6,9)+' '+d.slice(9);return v;}
+  if(key==='Адрес')return v.replace(/\s+,/g,',').replace(/,+/g,', ').replace(/\s+/g,' ').replace(/^,\s*/,'').trim();
+  return v;
+}
+
+function parse(text){
+  const records=[];
+  const blocks=text.split(/📌\s*Запись\s*#?\d+/i).filter(b=>b.trim());
+  for(const b of blocks){
+    const rec={};
+    for(const ln of b.split('\n')){
+      const m=ln.match(/[•·\-\*]?\s*([^:]+?):\s*(.+)/);
+      if(!m)continue;
+      const k=normKey(m[1]),v=normValue(k,m[2]);
+      if(v)rec[k]=v;
+    }
+    if(Object.keys(rec).length)records.push(rec);
+  }
+  return records;
+}
+
+function aggregate(records){
+  const tmp={};
+  for(const r of records)for(const[k,v]of Object.entries(r)){
+    if(!tmp[k])tmp[k]={};
+    const ck=v.toLowerCase().replace(/\s+/g,'');
+    if(!tmp[k][ck])tmp[k][ck]={val:v,count:0};
+    tmp[k][ck].count++;
+  }
+  const out={};
+  for(const k of Object.keys(tmp)){out[k]=Object.values(tmp[k]).sort((a,b)=>b.count-a.count);}
+  return out;
+}
+
+function calcConf(records,agg){
+  let s=0;
+  for(const k of['ФИО','Дата рождения','ИНН','Паспорт','СНИЛС']){if(!agg[k])continue;const t=agg[k][0];if(t&&t.count>=2)s+=15;else if(t)s+=5;}
+  if(records.length>=3)s+=10;if(records.length>=5)s+=10;
+  if(agg['Телефон'])s+=5;if(agg['Адрес'])s+=5;
+  return Math.min(100,s);
+}
+
+function genSummary(records,agg,conf){
+  const fio=agg['ФИО']?.[0]?.val||'неизвестная цель';
+  const dob=agg['Дата рождения']?.[0]?.val||'';
+  const phones=agg['Телефон']?.length||0;
+  const addrs=agg['Адрес']?.length||0;
+  const docs=[agg['Паспорт']?.length&&'паспортов: '+agg['Паспорт'].length,agg['ИНН']?.length&&'ИНН: '+agg['ИНН'].length,agg['СНИЛС']?.length&&'СНИЛС: '+agg['СНИЛС'].length].filter(Boolean).join(', ');
+  const debts=agg['Долг'];
+  let debtSum=0;if(debts)debts.forEach(d=>{const n=parseFloat(d.val.replace(/[^\d.]/g,''));if(!isNaN(n))debtSum+=n*d.count;});
+  const lvl=conf>=80?'высокая':conf>=60?'средняя':conf>=40?'умеренная':'низкая';
+  return `Объект исследования — <b>${fio}</b>${dob?', '+dob+' г.р.':''}. Проанализировано <b>${records.length}</b> записей из различных источников. Обнаружено уникальных номеров телефонов: <b>${phones}</b>, адресов: <b>${addrs}</b>${docs?'. Документы — '+docs:''}${debtSum?'. Совокупная задолженность по исполнительным производствам составляет <b>~'+debtSum.toLocaleString('ru-RU')+' ₽</b>':''}. Достоверность данных оценивается как <b>${lvl}</b> (${conf}%) на основании пересечения ключевых атрибутов.`;
+}
+
+function addPhotos(e){[...e.target.files].forEach(file=>{const r=new FileReader();r.onload=ev=>{state.photos.push(ev.target.result);renderPh();render();};r.readAsDataURL(file);});}
+function rmPh(i){state.photos.splice(i,1);renderPh();render();}
+function renderPh(){f('ph-grid').innerHTML=state.photos.map((p,i)=>`<img src="${p}" onclick="rmPh(${i})" title="Удалить">`).join('');}
+
+function render(){
+  const raw=f('f-raw').value;
+  if(!raw.trim()){f('report').innerHTML='<div style="text-align:center;color:var(--mu);padding:80px 20px;font-family:JetBrains Mono;font-size:12px">// вставь данные слева</div>';return;}
+  const records=parse(raw);
+  const agg=aggregate(records);
+  const conf=calcConf(records,agg);
+  const summary=genSummary(records,agg,conf);
+  const allKeys=Object.keys(agg);
+  const sorted=[...ORDER.filter(k=>allKeys.includes(k)),...allKeys.filter(k=>!ORDER.includes(k))];
+  const total=Object.values(agg).reduce((s,a)=>s+a.length,0);
+
+  f('report').innerHTML=`
+    <div class="hdr"><div><div class="badge">⚠ CONFIDENTIAL</div><h1 style="margin-top:10px">${f('f-title').value||'OSINT Report'}</h1><div style="color:var(--mu);font-size:12px;margin-top:6px;font-family:JetBrains Mono,monospace">TARGET: ${f('f-code').value||agg['ФИО']?.[0]?.val||'—'}</div></div><div class="meta">ID: ${Date.now().toString(36).toUpperCase()}<br>${new Date().toLocaleString('ru-RU')}<br>OSINT-GRAPH v1.0</div></div>
+    <div class="stats"><div class="stat"><div class="v">${records.length}</div><div class="l">записей</div></div><div class="stat"><div class="v">${sorted.length}</div><div class="l">атрибутов</div></div><div class="stat"><div class="v">${total}</div><div class="l">значений</div></div><div class="stat"><div class="v">${state.photos.length}</div><div class="l">фото</div></div><div class="stat"><div class="v">${conf}%</div><div class="l">доверие</div></div></div>
+    <div class="conf-bar"><div style="width:${conf}%"></div></div><div class="conf-lbl"><span>Confidence Score</span><span>${conf}/100</span></div>
+    <h2>🤖 AI Резюме</h2><div class="summary">${summary}</div>
+    <h2>📊 Агрегированные данные <span class="cnt">${sorted.length}</span></h2>
+    ${sorted.map(k=>`<div class="agg"><b>${k}</b><div class="vals">${agg[k].map((it,i)=>`<span class="${i===0?'primary':''}" title="встречается ${it.count}×">${it.val}${it.count>1?' ×'+it.count:''}</span>`).join('')}</div></div>`).join('')}
+    ${state.photos.length?`<h2>📸 Фотоматериалы <span class="cnt">${state.photos.length}</span></h2><div class="photos">${state.photos.map(p=>`<img src="${p}">`).join('')}</div>`:''}
+    <h2>📋 Исходные записи <span class="cnt">${records.length}</span></h2>
+    ${records.map((r,i)=>`<div class="rec"><div class="rh">Запись #${i+1}</div>${Object.entries(r).map(([k,v])=>`<div class="rf"><b>${k}</b><span>${v}</span></div>`).join('')}</div>`).join('')}
+    <div class="ftr">— END OF REPORT —<br>Generated by OSINT-GRAPH Report Engine</div>`;
+}
+
+function exportPDF(){html2pdf().set({margin:5,filename:`osint-${Date.now()}.pdf`,image:{type:'jpeg',quality:.95},html2canvas:{scale:2,backgroundColor:'#0a0b0f',useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['avoid-all','css','legacy']}}).from(f('report')).save();}
+function exportHTML(){const css=document.querySelector('style').innerHTML;const html=`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>${f('f-title').value}</title><style>${css}</style></head><body style="display:block;background:#0a0b0f;padding:32px">${f('report').outerHTML}</body></html>`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));a.download=`osint-${Date.now()}.html`;a.click();}
+</script></body></html>
